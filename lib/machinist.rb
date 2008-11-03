@@ -6,15 +6,26 @@ module Machinist
   end
   
   module ClassMethods
-    def blueprint(&blueprint)
-      @blueprint = blueprint
+    def blueprints
+      @blueprints ||= {}
+    end
+    
+    def blueprint(name=nil,&blueprint)
+      name ||= '__default__'
+      blueprints[name] = blueprint
     end
   
-    def make(attributes = {})
-      raise "No blueprint for class #{self}" if @blueprint.nil?
+    def make(*args)
+      attributes = Hash === args.last ? args.pop : {}
+      name = args.shift || '__default__'
+      blueprint = blueprints[name]
+      
+      raise "No blueprint '#{name}' for class #{self}" unless blueprint
+      
       lathe = Lathe.new(self.new, attributes)
-      lathe.instance_eval(&@blueprint)
+      lathe.instance_eval(&blueprint)
       lathe.object.save!
+      
       returning(lathe.object.reload) do |object|
         yield object if block_given?
       end
